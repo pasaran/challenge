@@ -1,0 +1,56 @@
+#!/usr/bin/perl -w
+
+use strict;
+
+my @tests = (
+    [5, 10, 90, 110, 10000], # k in [5, ..., 10], N in [90, ..., 110], repeat 10000 times
+    [5, 10, 9000, 11000, 100],
+    [40, 60, 90, 110, 10000],
+    [5, 10, 900000, 1100000, 1],
+    [4000, 6000, 9000, 11000, 100],
+    [400000, 600000, 900000, 1100000, 1]
+);
+
+open(G, ">run");
+print G <<SH;
+#\!/bin/sh
+
+echo Testing: \$1
+for i in 1 2 3 4 5
+do
+echo run: \$i
+SH
+for my $test (@tests) {
+    my $k = int($test->[0] + rand( $test->[1] - $test->[0] + 1));
+    my $N = int($test->[2] + rand( $test->[3] - $test->[2] + 1));
+    my $r = $test->[4];
+
+    my @t;
+    for (my $i = 0; $i < $N; $i++) {
+        $t[$i] = $i + 1;
+    }
+    for (my $i = 0; $i < $N; $i++) {
+        my $j = int(rand($N));
+        my $t = $t[$i]; $t[$i] = $t[$j]; $t[$j] = $t;
+    }
+
+    open(F, ">$k-from-$N.test.xml");
+    print F "<items>\n";
+    for my $i (@t) {
+        print F "<item>$i</item>\n";
+    }
+    print F "</items>\n";
+    close(F);
+
+    print G <<SH;
+/usr/bin/time -f "$k\\t/\\t$N\\tx$r:\\treal %es, user %Us" xsltproc --stringparam k $k --stringparam N $N --stringparam repeat $r \$1 $k-from-$N.test.xml
+SH
+}
+print G <<SH;
+echo "--------------------------------------------------------------------------------"
+done
+
+SH
+close G;
+`chmod +x run`;
+
